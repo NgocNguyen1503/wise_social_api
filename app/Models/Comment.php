@@ -12,10 +12,30 @@ class Comment extends Model
     protected $table = "comments";
 
     protected $fillable = [
-        "user_id", "post_id", "comment", "parent_id"
+        "user_id",
+        "post_id",
+        "comment",
+        "parent_id"
     ];
 
-    public function sbviu() {
-        echo " kfhiohef";
+    public function child()
+    {
+        return $this->hasMany(
+            '\App\Models\Comment',
+            'parent_id',
+            'id'
+        );
+    }
+
+    /**
+     * Get the author of the comment.
+     */
+    public function author()
+    {
+        return $this->hasOne(
+            '\App\Models\User',
+            'id',
+            'user_id',
+        );
     }
 }

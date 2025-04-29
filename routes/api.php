@@ -28,10 +28,10 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::patch('/update-password', [\App\Http\Controllers\APIController::class, 'updatePassword']);
     Route::delete('/delete-user/{id}', [\App\Http\Controllers\APIController::class, 'deleteUser']);
 
-    Route::get('/my-infor', [\App\Http\Controllers\UserController::class, 'show']);
+    Route::get('/my-info', [\App\Http\Controllers\UserController::class, 'show']);
     Route::get('/list-suggest-friend', [\App\Http\Controllers\UserController::class, 'suggestFriend']);
     Route::get('/add-friend', [\App\Http\Controllers\UserController::class, 'addFriend']);
-    Route::get('/list-request-friend', [\App\Http\Controllers\UserController::class, 'listFriendRequest']);
+    Route::get('/list-friend-request', [\App\Http\Controllers\UserController::class, 'listFriendRequest']);
     Route::get('/accept', [\App\Http\Controllers\UserController::class, 'accept']);
     Route::get('/most-followed', [\App\Http\Controllers\UserController::class, 'mostFollowed']);
     Route::get('/search', [\App\Http\Controllers\UserController::class, 'search']);
@@ -40,6 +40,9 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::get('/timeline', [\App\Http\Controllers\TimeLineController::class, 'timeLine']);
     Route::get('/add-favorites', [\App\Http\Controllers\TimeLineController::class, 'addFavorite']);
     Route::get('/remove-favorites', [\App\Http\Controllers\TimeLineController::class, 'removeFavorite']);
+    Route::get('/like', [\App\Http\Controllers\TimeLineController::class, 'like']);
+    Route::get('/list-comment', [\App\Http\Controllers\TimeLineController::class, 'listComment']);
+    Route::post('/comment', [\App\Http\Controllers\TimeLineController::class, 'postComment']);
 });
 
 Route::post('/register', [\App\Http\Controllers\AuthController::class, 'register']);

@@ -195,4 +195,152 @@ class TimeLineController extends Controller
             return $this->apiResponse->InternalServerError();
         }
     }
+
+    public function like(Request $request)
+    {
+        $param = $request->all();
+        try {
+            $now = Carbon::now();
+            if ($param['action'] == 'like') {
+                DB::table('likes')->insert([
+                    'user_id' => Auth::user()->id,
+                    'post_id' => $param['post_id'],
+                    'created_at' => $now,
+                    'updated_at' => $now
+                ]);
+            } else {
+                DB::table('likes')
+                    ->where('user_id', Auth::user()->id)
+                    ->where('post_id', $param['post_id'])
+                    ->delete();
+            }
+            return $this->apiResponse->success($param['post_id']);
+        } catch (\Exception $e) {
+            return $this->apiResponse->InternalServerError();
+        }
+    }
+
+    /**
+     * List comments for a specific post.
+     *
+     * Retrieves paginated comments ordered by ID descending for a given post.
+     *
+     * @param \Illuminate\Http\Request $request The incoming HTTP request containing post_id, offset, and limit.
+     * @return string|mixed JSON response with comments or an empty array.
+     */
+    public function listComment(Request $request)
+    {
+        // Retrieve request parameters (post_id, offset, limit)
+        $param = $request->all();
+
+        // Fetch comments for the given post_id, joining with users table to get author details.
+        // Order by comment ID descending and apply pagination.
+        $comments = Comment::join(
+            'users', // Join the 'comments' table with the 'users' table
+            'comments.user_id', // on the user_id column from comments
+            'users.id' // and the id column from users
+        )
+            // Load relationship 'child'
+            ->with('child', 'child.author')
+            ->select(
+                // Select necessary columns, aliasing comment ID for clarity
+                'users.id as user_id',
+                'users.name',
+                'users.avatar',
+                'comments.id',
+                'comments.comment',
+                'comments.post_id',
+                'comments.parent_id',
+                'comments.created_at',
+            )
+            // Filter to get only top-level comments (comments with no parent)
+            ->where('comments.parent_id', 0)
+            // Filter comments belonging to the specific post ID from the request
+            ->where('comments.post_id', $param['post_id'])
+            // Order the results by comment ID in descending order
+            ->orderBy('comments.id', 'DESC')
+            // Skip a number of results for pagination (offset)
+            ->skip($param['offset'])
+            // Limit the number of results fetched for pagination (limit)
+            ->take($param['limit'])
+            // Execute the query and get the results
+            ->get();
+
+        // Check if there are comments found
+        if (count($comments) > 0) {
+            // Loop through each top-level comment
+            foreach ($comments as $comment) {
+
+                // Generate avatar URL for the top-level comment author if available
+                // Generate avatar URL for the top-level comment author if available
+                if (!is_null($comment->avatar)) {
+                    $avatarTmp = $comment->avatar;
+                    $comment->_avatar = env('APP_URL')
+                        . '/avatars/'
+                        . explode('@', $comment->email)[0]
+                        . '/'
+                        . $avatarTmp;
+                } else {
+                    $comments->_avatar = null;
+                }
+
+                // Check if the comment has any replies (child comments)
+                if (count($comment->child) > 0) {
+                    // Loop through each child comment
+                    foreach ($comment->child as $cmtChild) {
+                        // Generate avatar URL for the child comment author if available
+                        if (!is_null($cmtChild->author->avatar)) {
+                            $avatarTmp = $cmtChild->author->avatar;
+                            $cmtChild->author->_avatar = env('APP_URL')
+                                . 'avatars/'
+                                . explode('@', $cmtChild->author->email)[0]
+                                . '/'
+                                . $avatarTmp;
+                        } else {
+                            $cmtChild->author->_avatar = null;
+                        }
+                    }
+                }
+                $created_at_tmp = Carbon::create($comment->created_at);
+                $comment->_created_at = $created_at_tmp->format('Y-m-d h:i');
+            }
+        }
+        // Return a success response with the fetched comments
+        return $this->apiResponse->success($comments);
+    }
+
+    public function postComment(Request $request)
+    {
+        $param = $request->all();
+        $comment = new Comment();
+        $comment->user_id = Auth::user()->id;
+        $comment->post_id = $param['post_id'];
+        $comment->comment = $param['comment'];
+        $comment->parent_id = $param['parent'];
+        $comment->save();
+
+        $avatar = null;
+        if (!is_null(Auth::user()->avatar)) {
+            $avatarTmp = Auth::user()->avatar;
+            $avatar = env('APP_URL') . 'avatars/'
+                . explode('@', Auth::user()->email)[0] . '/'
+                . $avatarTmp;
+        }
+        $timeNow = Carbon::now();
+
+        $responseData = [
+            'id' => $comment->id,
+            'comment' => $param['comment'],
+            'avatar' => $avatar,
+            'name' => Auth::user()->name,
+            'created_at' => $timeNow,
+            'updated_at' => $timeNow,
+            'parent_id' => $param['parent'],
+            'child' => null,
+            'post_id' => $param['post_id'],
+            'type' => 'comment',
+            'action' => 'send_coment'
+        ];
+        return $this->apiResponse->success();
+    }
 }
