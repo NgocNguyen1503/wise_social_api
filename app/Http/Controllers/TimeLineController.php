@@ -340,7 +340,12 @@ class TimeLineController extends Controller
             'child' => null,
             'post_id' => $param['post_id'],
             'type' => 'comment',
-            'action' => 'send_comment'
+            'action' => 'send_comment',
+            'author' => [
+                '_avatar' => $avatar,
+                'name' => Auth::user()->name
+            ],
+            '_created_at' => Carbon::now()
         ];
         return $this->apiResponse->success($responseData);
     }
