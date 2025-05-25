@@ -339,8 +339,8 @@ class TimeLineController extends Controller
             'child' => null,
             'post_id' => $param['post_id'],
             'type' => 'comment',
-            'action' => 'send_coment'
+            'action' => 'send_comment'
         ];
-        return $this->apiResponse->success();
+        return $this->apiResponse->success($responseData);
     }
 }
