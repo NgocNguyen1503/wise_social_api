@@ -246,6 +246,7 @@ class TimeLineController extends Controller
                 // Select necessary columns, aliasing comment ID for clarity
                 'users.id as user_id',
                 'users.name',
+                'users.email',
                 'users.avatar',
                 'comments.id',
                 'comments.comment',
