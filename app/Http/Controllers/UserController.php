@@ -395,7 +395,7 @@ class UserController extends Controller
                 }
             }
         }
-        return $this->apiResponse->success($friend);
+        return $this->apiResponse->success($friends);
     }
 
     /**
