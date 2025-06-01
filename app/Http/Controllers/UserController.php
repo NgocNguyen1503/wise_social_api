@@ -256,14 +256,14 @@ class UserController extends Controller
 
     public function mostFollowed(Request $request)
     {
-        $user = User::select(
+        $user = User::select([
             'users.id',
             'users.name',
             'users.email',
             'users.avatar',
             DB::raw('COUNT(follows.id) as total_follow'),
             'follows.follow_id'
-        )->join('follows', 'users.id', 'follows.follow_id')
+        ])->join('follows', 'users.id', 'follows.follow_id')
             ->with([
                 'experiences' => function ($experienceQuery) {
                     return $experienceQuery->select('id', 'user_id', 'title');
@@ -352,12 +352,12 @@ class UserController extends Controller
         if (count($checkToken) == 0) {
             $deviceToken = new DeviceToken();
             $deviceToken->user_id = $userId;
-            $deviceToken->token = $param['fcmToken'];
+            $deviceToken->token = $param['fcmToken'] ?? 0;
             $deviceToken->save();
         } else {
             $deviceToken = DeviceToken::where('user_id', $userId)
                 ->first();
-            $deviceToken->token = $param['fcmToken'];
+            $deviceToken->token = $param['fcmToken'] ?? 0;
             $deviceToken->updated_at = Carbon::now();
             $deviceToken->update();
         }
@@ -400,27 +400,26 @@ class UserController extends Controller
 
     public function listMessage(Request $request)
     {
-        $userId = Auth::user()->id;
-        $param = $request->all();
+        $params = $request->all();
+        $user = Auth::user();
         $userInRoom = [
-            "[" . $userId . ", " . $param['friendId'] . "]",
-            "[" . $param['friendId'] . "," . $userId . "]",
+            "[" . $user->id . ", " . $params['friendId'] . "]",
+            "[" . $params['friendId'] . ", " . $user->id . "]",
         ];
         $room = ChatRoom::where('user_id', $userInRoom[0])
-            ->orWhere('user_id', $userInRoom[1])->first();
+            ->orWhere('user_id', $userInRoom[1])
+            ->first();
         $roomId = null;
-        if (!$room) {
-            // Create new room
-            $newRoom = new ChatRoom();
-            $newRoom->user_id = $userInRoom[0];
-            $newRoom->save();
-            $roomId = $newRoom->id;
+        if (is_null($room)) {
+            $createRoom = new ChatRoom();
+            $createRoom->user_id = $userInRoom[0];
+            $createRoom->save();
+            $roomId = $createRoom->id;
         } else {
             $roomId = $room->id;
         }
-
         $messages = Message::join('users', 'messages.user_id', 'users.id')
-            ->select(
+            ->select([
                 'messages.id',
                 'users.name',
                 'users.avatar',
@@ -428,27 +427,29 @@ class UserController extends Controller
                 'messages.user_id',
                 'messages.friend_id',
                 'messages.is_view'
-            )
-            ->where('chatroom_id', $roomId)
-            ->orderBy('messages.created_at', 'ASC')
+            ])
+            ->where('messages.chatroom_id', $roomId)
+            ->orderBy('messages.created_at', 'asc')
             ->get()
-            ->map(function ($item) use ($userId) {
-                if ($item->user_id == $userId) {
-                    // My message
+            ->map(function ($item) use ($user, $roomId) {
+                if ($item->user_id == $user->id) {
                     $item->my_message = "me";
                 }
-                if ($item->friend_id == $userId) {
-                    $item->my_message = "friend";
+                if ($item->friend_id == $user->id) {
+                    $item->my_message = 'friend';
                 }
-                $item->_created_at = Carbon::create($item->created_at)->format('Y-m-d H:i:s');
+                $item->_created_at = Carbon::create($item->created_at)->format('Y-m-d h:i');
+                $item->room_id = $roomId;
+                $item->type = 'message';
+                $item->action = 'join';
                 return $item;
             });
-        $responseData = [
+        $response = [
             'room_id' => $roomId,
             'messages' => $messages,
-            'user_id' => Auth::user()->id,
+            'user_id' => $user->id,
         ];
-        return $this->apiResponse->success($responseData);
+        return $this->apiResponse->success($response);
     }
 
     public function sendMessage(Request $request)
@@ -471,7 +472,10 @@ class UserController extends Controller
             "is_view" => Message::UNVIEW,
             "created_at" => Carbon::now(),
             "my_message" => "me",
-            "_created_at" => Carbon::now()->format('Y-m-d h:i')
+            "_created_at" => Carbon::now()->format('Y-m-d h:i'),
+            "room_id" => (int) $param['room_id'],
+            "type" => "message",
+            "action" => "send-message",
         ];
         return $this->apiResponse->success($responseData);
     }
