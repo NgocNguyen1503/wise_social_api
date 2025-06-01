@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Helpers\ApiResponse;
 use App\Helpers\SendMail;
+use App\Models\ChatRoom;
 use App\Models\DeviceToken;
 use App\Models\Follow;
 use App\Models\Friend;
+use App\Models\Message;
 use App\Models\Notification;
 use App\Models\User;
 use Carbon\Carbon;
@@ -20,7 +22,8 @@ class UserController extends Controller
 
     private $apiResponse;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->apiResponse = new ApiResponse();
     }
 
@@ -61,8 +64,11 @@ class UserController extends Controller
         }
         $user = User::with('follower', 'follows')
             ->select(
-                'id', 'name', 'email',
-                'avatar', 'overview'
+                'id',
+                'name',
+                'email',
+                'avatar',
+                'overview'
             )->where('id', $userId)->first();
         $user->followers = count($user->follower);
         $user->following = count($user->follows);
@@ -100,7 +106,9 @@ class UserController extends Controller
         ])->whereNotIn('id', $listFriendId)
             ->where('status', User::STATUS_ACTIVE)
             ->select(
-                'id', 'name', 'avatar',
+                'id',
+                'name',
+                'avatar',
                 'created_at'
             )->orderBy('created_at', 'ASC')
             ->limit(config('constant.limit'))
@@ -148,12 +156,17 @@ class UserController extends Controller
                 return $experienceQuery->select('id', 'user_id', 'title');
             }
         ])->join(
-            'friends', 'users.id', 'friends.user_id'
+                'friends',
+                'users.id',
+                'friends.user_id'
             )->where('friends.friend_id', $userId)
             ->where('users.status', User::STATUS_ACTIVE)
             ->where('friends.approved', Friend::UN_APPROVED)
             ->select(
-                'friends.id', 'users.email', 'users.name', 'users.avatar',
+                'friends.id',
+                'users.email',
+                'users.name',
+                'users.avatar',
                 'users.created_at'
             )->orderBy('friends.created_at', 'ASC')
             ->limit(config('constant.limit'))
@@ -211,7 +224,7 @@ class UserController extends Controller
             $notification = new Notification();
             $notification->user_id = $param['friend_id'];
             $notification->actor_id = Auth::id();
-            $notification->content = "「'".Auth::user()->name."'」さんがあなたに友達リクエストを送信しました。";
+            $notification->content = "「'" . Auth::user()->name . "'」さんがあなたに友達リクエストを送信しました。";
             $notification->is_view = Notification::UNVIEWED;
             $notification->status = Notification::STATUS_WAIT;
             $notification->save();
@@ -229,10 +242,10 @@ class UserController extends Controller
         if ($param['type'] == 'accept') {
             // Approve
             return DB::table('friends')
-            ->where('id', $param['id'])
-            ->update([
-                'approved' => Friend::APPROVED
-            ]);
+                ->where('id', $param['id'])
+                ->update([
+                    'approved' => Friend::APPROVED
+                ]);
         } else {
             // Remove
             return DB::table('friends')
@@ -244,18 +257,24 @@ class UserController extends Controller
     public function mostFollowed(Request $request)
     {
         $user = User::select(
-            'users.id', 'users.name', 'users.email', 'users.avatar',
+            'users.id',
+            'users.name',
+            'users.email',
+            'users.avatar',
             DB::raw('COUNT(follows.id) as total_follow'),
             'follows.follow_id'
         )->join('follows', 'users.id', 'follows.follow_id')
-        ->with([
-            'experiences' => function ($experienceQuery) {
-                return $experienceQuery->select('id', 'user_id', 'title');
-            }
-        ])->groupBy(
-            'follows.follow_id', 'users.id', 'users.name',
-            'users.email', 'users.avatar'
-        )->orderBy('total_follow', 'DESC')->first();
+            ->with([
+                'experiences' => function ($experienceQuery) {
+                    return $experienceQuery->select('id', 'user_id', 'title');
+                }
+            ])->groupBy(
+                'follows.follow_id',
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.avatar'
+            )->orderBy('total_follow', 'DESC')->first();
         $folderAvatar = null;
         if (!is_null($user->avatar)) {
             $folderAvatar = explode('@', $user->email);
@@ -287,12 +306,15 @@ class UserController extends Controller
                 return $experienceQuery->select('id', 'user_id', 'title');
             }
         ])->select(
-            'id', 'name', 'email', 'avatar'
-        )->whereHas('experiences', function ($query) use ($param) {
-            return $query->where('title', 'Like', '%' . $param['key-word'] . '%');
-        })->orWhere('name', 'Like', '%'.$param['key-word'] . '%')
-        ->orWhere('email', 'Like', '%'.$param['key-word'] . '%')
-        ->orderBy('id', 'DESC')->get();
+                'id',
+                'name',
+                'email',
+                'avatar'
+            )->whereHas('experiences', function ($query) use ($param) {
+                return $query->where('title', 'Like', '%' . $param['key-word'] . '%');
+            })->orWhere('name', 'Like', '%' . $param['key-word'] . '%')
+            ->orWhere('email', 'Like', '%' . $param['key-word'] . '%')
+            ->orderBy('id', 'DESC')->get();
         if (count($users) > 0) {
             foreach ($users as $user) {
                 $folderAvatar = null;
@@ -340,6 +362,40 @@ class UserController extends Controller
             $deviceToken->update();
         }
         return $this->apiResponse->success($deviceToken);
+    }
+
+    public function listFriend(Request $request)
+    {
+        $userId = Auth::user()->id;
+        // Get all user's friends
+        $friends = Friend::join('users', 'friends.friend_id', 'users.id')
+            ->select(
+                'users.id',
+                'users.name',
+                'users.email',
+                'users.avatar',
+                'users.online_status'
+            )
+            ->where('friends.user_id', $userId)
+            ->where('friends.approved', Friend::APPROVED)
+            ->orderBy('friends.created_at', 'DESC')
+            ->get();
+        // Get all user and friends's messages
+        $listMessage = Message::where('user_id', $userId)
+            ->orWhere('friend_id', $userId)
+            ->orderBy('created_at', 'DESC')
+            ->get();
+        // Get user and friends's newest messages only
+        foreach ($friends as $friend) {
+            foreach ($listMessage as $message) {
+                if ($friend->id == $message->user_id || $friend->id == $message->friend_id) {
+                    $friend->last_message = $message->message;
+                    $friend->last_sent = Carbon::create($message->created_at)->diffForHumans(now());
+                    continue;
+                }
+            }
+        }
+        return $this->apiResponse->success($friend);
     }
 
     /**

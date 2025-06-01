@@ -36,7 +36,10 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::get('/most-followed', [\App\Http\Controllers\UserController::class, 'mostFollowed']);
     Route::get('/search', [\App\Http\Controllers\UserController::class, 'search']);
     Route::get('/setDeviceToken', [\App\Http\Controllers\UserController::class, 'setDeviceToken']);
+    Route::get('/list-friend', [\App\Http\Controllers\UserController::class, 'listFriend']);
+
     Route::post('/create-post', [\App\Http\Controllers\PostController::class, 'store']);
+
     Route::get('/timeline', [\App\Http\Controllers\TimeLineController::class, 'timeLine']);
     Route::get('/add-favorites', [\App\Http\Controllers\TimeLineController::class, 'addFavorite']);
     Route::get('/remove-favorites', [\App\Http\Controllers\TimeLineController::class, 'removeFavorite']);
