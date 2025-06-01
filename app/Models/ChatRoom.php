@@ -9,8 +9,8 @@ class ChatRoom extends Model
 {
     use HasFactory;
 
-    private $table = "chat_room";
-    private $fillable = ['id', 'user_id'];
+    protected $table = "chat_rooms";
+    protected $fillable = ['id', 'user_id'];
     public function massages()
     {
         return $this->hasMany('App\'Models\Message', 'user_id', 'room_id');

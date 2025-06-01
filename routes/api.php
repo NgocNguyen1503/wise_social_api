@@ -37,6 +37,8 @@ Route::group(['middleware' => 'auth:sanctum'], function () {
     Route::get('/search', [\App\Http\Controllers\UserController::class, 'search']);
     Route::get('/setDeviceToken', [\App\Http\Controllers\UserController::class, 'setDeviceToken']);
     Route::get('/list-friend', [\App\Http\Controllers\UserController::class, 'listFriend']);
+    Route::get('/list-message', [\App\Http\Controllers\UserController::class, 'listMessage']);
+    Route::post('/send-message', [\App\Http\Controllers\UserController::class, 'sendMessage']);
 
     Route::post('/create-post', [\App\Http\Controllers\PostController::class, 'store']);
 

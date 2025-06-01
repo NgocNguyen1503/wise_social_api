@@ -383,7 +383,7 @@ class UserController extends Controller
         // Get all user and friends's messages
         $listMessage = Message::where('user_id', $userId)
             ->orWhere('friend_id', $userId)
-            ->orderBy('created_at', 'DESC')
+            ->orderBy('created_at', 'ASC')
             ->get();
         // Get user and friends's newest messages only
         foreach ($friends as $friend) {
@@ -396,6 +396,84 @@ class UserController extends Controller
             }
         }
         return $this->apiResponse->success($friends);
+    }
+
+    public function listMessage(Request $request)
+    {
+        $userId = Auth::user()->id;
+        $param = $request->all();
+        $userInRoom = [
+            "[" . $userId . ", " . $param['friendId'] . "]",
+            "[" . $param['friendId'] . "," . $userId . "]",
+        ];
+        $room = ChatRoom::where('user_id', $userInRoom[0])
+            ->orWhere('user_id', $userInRoom[1])->first();
+        $roomId = null;
+        if (!$room) {
+            // Create new room
+            $newRoom = new ChatRoom();
+            $newRoom->user_id = $userInRoom[0];
+            $newRoom->save();
+            $roomId = $newRoom->id;
+        } else {
+            $roomId = $room->id;
+        }
+
+        $messages = Message::join('users', 'messages.user_id', 'users.id')
+            ->select(
+                'messages.id',
+                'users.name',
+                'users.avatar',
+                'messages.message',
+                'messages.user_id',
+                'messages.friend_id',
+                'messages.is_view'
+            )
+            ->where('chatroom_id', $roomId)
+            ->orderBy('messages.created_at', 'ASC')
+            ->get()
+            ->map(function ($item) use ($userId) {
+                if ($item->user_id == $userId) {
+                    // My message
+                    $item->my_message = "me";
+                }
+                if ($item->friend_id == $userId) {
+                    $item->my_message = "friend";
+                }
+                $item->_created_at = Carbon::create($item->created_at)->format('Y-m-d H:i:s');
+                return $item;
+            });
+        $responseData = [
+            'room_id' => $roomId,
+            'messages' => $messages,
+            'user_id' => Auth::user()->id,
+        ];
+        return $this->apiResponse->success($responseData);
+    }
+
+    public function sendMessage(Request $request)
+    {
+        $param = $request->all();
+        $message = new Message();
+        $message->user_id = Auth::user()->id;
+        $message->friend_id = $param['friend_id'];
+        $message->chatroom_id = $param['room_id'];
+        $message->message = $param['message_content'];
+        $message->is_view = Message::UNVIEW;
+        $message->save();
+        $responseData = [
+            "id" => $message->id,
+            "name" => Auth::user()->name,
+            "avatar" => "user-pro-img.png",
+            "message" => $param['message_content'],
+            "user_id" => Auth::user()->id,
+            "friend_id" => $param['friend_id'],
+            "is_view" => Message::UNVIEW,
+            "created_at" => Carbon::now(),
+            "my_message" => "me",
+            "_created_at" => Carbon::now()->format('Y-m-d h:i')
+        ];
+        return $this->apiResponse->success($responseData);
     }
 
     /**
