@@ -260,21 +260,9 @@ class UserController extends Controller
             'users.id',
             'users.name',
             'users.email',
-            'users.avatar',
-            DB::raw('COUNT(follows.id) as total_follow'),
-            'follows.follow_id'
-        ])->join('follows', 'users.id', 'follows.follow_id')
-            ->with([
-                'experiences' => function ($experienceQuery) {
-                    return $experienceQuery->select('id', 'user_id', 'title');
-                }
-            ])->groupBy(
-                'follows.follow_id',
-                'users.id',
-                'users.name',
-                'users.email',
-                'users.avatar'
-            )->orderBy('total_follow', 'DESC')->first();
+            'users.avatar'
+        ])
+            ->first();
         $folderAvatar = null;
         if (!is_null($user->avatar)) {
             $folderAvatar = explode('@', $user->email);
