@@ -11,9 +11,6 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('messages', function (Blueprint $table) {
-            $table->dropColumn('friend_id');
-        });
-        Schema::table('messages', function (Blueprint $table) {
             $table->integer('room_id')->after('user_id')->nullable();
         });
         Schema::create('chat_rooms', function (Blueprint $table) {
